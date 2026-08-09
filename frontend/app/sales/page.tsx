@@ -254,58 +254,116 @@ export default function SalesPage() {
   };
 
 
-  const completePayment = () => {
-    if (!canCompletePayment) {
-      if (paymentMethod === "split") {
-        alert(
-          "Split payment must equal the sale total."
-        );
-      } else {
-        alert(
-          "Amount paid is less than the sale total."
-        );
-      }
+const completePayment = () => {
+  if (!canCompletePayment) {
+    if (paymentMethod === "split") {
+      alert(
+        "Split payment must equal the sale total."
+      );
+    } else {
+      alert(
+        "Amount paid is less than the sale total."
+      );
+    }
+    return;
+  }
+
+  let paymentDescription = "";
+
+  if (paymentMethod === "split") {
+    paymentDescription =
+      `Split Payment\nCash: ₦${splitCash.toLocaleString()}\nCard: ₦${splitCard.toLocaleString()}\nTransfer: ₦${splitTransfer.toLocaleString()}`;
+  } else {
+    paymentDescription =
+      paymentMethod === "cash"
+        ? `Cash: ₦${cashAmount.toLocaleString()}`
+        : paymentMethod === "card"
+        ? `Card: ₦${cardAmount.toLocaleString()}`
+        : `Transfer: ₦${transferAmount.toLocaleString()}`;
+  }
+
+  /*
+   * Reduce stock and create stock movements.
+   */
+
+  const updatedProducts = [...products];
+
+  const savedMovements = localStorage.getItem(
+    "ezc-stock-movements"
+  );
+
+  const movements = savedMovements
+    ? JSON.parse(savedMovements)
+    : [];
+
+  cart.forEach((item) => {
+    const productIndex = updatedProducts.findIndex(
+      (product) =>
+        product.id === item.product.id
+    );
+
+    if (productIndex === -1) {
       return;
     }
-  
-    let paymentDescription = "";
-  
-    if (paymentMethod === "split") {
-      paymentDescription =
-        `Split Payment\nCash: ₦${splitCash.toLocaleString()}\nCard: ₦${splitCard.toLocaleString()}\nTransfer: ₦${splitTransfer.toLocaleString()}`;
-    } else {
-      paymentDescription =
-        paymentMethod === "cash"
-          ? `Cash: ₦${cashAmount.toLocaleString()}`
-          : paymentMethod === "card"
-          ? `Card: ₦${cardAmount.toLocaleString()}`
-          : `Transfer: ₦${transferAmount.toLocaleString()}`;
-    }
-  
-    /*
-     * For now this only completes
-     * the frontend payment screen.
-     *
-     * In the next backend step we will:
-     * - reduce inventory
-     * - create sale record
-     * - create payment records
-     * - create stock movement
-     * - generate receipt
-     */
-  
-    alert(
-      `Payment successful!\n\nMethod: ${paymentDescription}\nTotal: ₦${total.toLocaleString()}`
-    );
-  
-    setCart([]);
-    setDiscount("");
-    setAmountPaid("");
-    setCashAmount("");
-    setCardAmount("");
-    setTransferAmount("");
-    setShowPayment(false);
-  };
+
+    const product =
+      updatedProducts[productIndex];
+
+    const previousStock = product.stock;
+    const newStock =
+      previousStock - item.quantity;
+
+    updatedProducts[productIndex] = {
+      ...product,
+      stock: newStock,
+    };
+
+    movements.push({
+      id: Date.now() + product.id,
+      productId: product.id,
+      productName: product.name,
+      type: "OUT",
+      quantity: item.quantity,
+      previousStock,
+      newStock,
+      reason: "Sale",
+      date: new Date().toISOString(),
+    });
+  });
+
+  /*
+   * Save updated products.
+   */
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(updatedProducts)
+  );
+
+  /*
+   * Save stock movement history.
+   */
+  localStorage.setItem(
+    "ezc-stock-movements",
+    JSON.stringify(movements)
+  );
+
+  /*
+   * Update products in the current page.
+   */
+  setProducts(updatedProducts);
+
+  alert(
+    `Payment successful!\n\nMethod: ${paymentDescription}\nTotal: ₦${total.toLocaleString()}`
+  );
+
+  setCart([]);
+  setDiscount("");
+  setAmountPaid("");
+  setCashAmount("");
+  setCardAmount("");
+  setTransferAmount("");
+  setShowPayment(false);
+};
 
 
   const clearSale = () => {
