@@ -36,7 +36,7 @@ export default function Sidebar() {
     },
     {
       name: "Sales History",
-      path: "/history",
+      path: "/sales/history",
     },
     {
       name: "Reports",

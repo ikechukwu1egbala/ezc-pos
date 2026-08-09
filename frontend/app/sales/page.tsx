@@ -19,7 +19,12 @@ interface CartItem {
   quantity: number;
 }
 
-type PaymentMethod = "cash" | "card" | "transfer";
+
+type PaymentMethod =
+  | "cash"
+  | "card"
+  | "transfer"
+  | "split";
 
 const STORAGE_KEY = "ezc-products";
 
@@ -35,8 +40,15 @@ export default function SalesPage() {
 
   const [amountPaid, setAmountPaid] = useState("");
 
+  // Split payment amounts
+  const [cashAmount, setCashAmount] = useState("");
+  const [cardAmount, setCardAmount] = useState("");
+  const [transferAmount, setTransferAmount] =
+    useState("");
+
   useEffect(() => {
-    const savedProducts = localStorage.getItem(STORAGE_KEY);
+    const savedProducts =
+      localStorage.getItem(STORAGE_KEY);
 
     if (savedProducts) {
       setProducts(JSON.parse(savedProducts));
@@ -52,9 +64,15 @@ export default function SalesPage() {
 
     return products.filter(
       (product) =>
-        product.name.toLowerCase().includes(searchText) ||
-        product.category.toLowerCase().includes(searchText) ||
-        product.sku.toLowerCase().includes(searchText)
+        product.name
+          .toLowerCase()
+          .includes(searchText) ||
+        product.category
+          .toLowerCase()
+          .includes(searchText) ||
+        product.sku
+          .toLowerCase()
+          .includes(searchText)
     );
   }, [products, search]);
 
@@ -66,11 +84,15 @@ export default function SalesPage() {
 
     setCart((currentCart) => {
       const existing = currentCart.find(
-        (item) => item.product.id === product.id
+        (item) =>
+          item.product.id === product.id
       );
 
       if (existing) {
-        if (existing.quantity >= product.stock) {
+        if (
+          existing.quantity >=
+          product.stock
+        ) {
           alert(
             "You cannot sell more than the available stock."
           );
@@ -82,7 +104,8 @@ export default function SalesPage() {
           item.product.id === product.id
             ? {
                 ...item,
-                quantity: item.quantity + 1,
+                quantity:
+                  item.quantity + 1,
               }
             : item
         );
@@ -98,51 +121,69 @@ export default function SalesPage() {
     });
   };
 
-  const increaseQuantity = (productId: number) => {
+  const increaseQuantity = (
+    productId: number
+  ) => {
     setCart((currentCart) =>
       currentCart.map((item) => {
-        if (item.product.id !== productId) {
+        if (
+          item.product.id !== productId
+        ) {
           return item;
         }
 
-        if (item.quantity >= item.product.stock) {
+        if (
+          item.quantity >=
+          item.product.stock
+        ) {
           return item;
         }
 
         return {
           ...item,
-          quantity: item.quantity + 1,
+          quantity:
+            item.quantity + 1,
         };
       })
     );
   };
 
-  const decreaseQuantity = (productId: number) => {
+  const decreaseQuantity = (
+    productId: number
+  ) => {
     setCart((currentCart) =>
       currentCart
         .map((item) =>
           item.product.id === productId
             ? {
                 ...item,
-                quantity: item.quantity - 1,
+                quantity:
+                  item.quantity - 1,
               }
             : item
         )
-        .filter((item) => item.quantity > 0)
+        .filter(
+          (item) => item.quantity > 0
+        )
     );
   };
 
-  const removeFromCart = (productId: number) => {
+  const removeFromCart = (
+    productId: number
+  ) => {
     setCart((currentCart) =>
       currentCart.filter(
-        (item) => item.product.id !== productId
+        (item) =>
+          item.product.id !== productId
       )
     );
   };
 
   const subtotal = cart.reduce(
     (total, item) =>
-      total + item.product.sellingPrice * item.quantity,
+      total +
+      item.product.sellingPrice *
+        item.quantity,
     0
   );
 
@@ -151,19 +192,45 @@ export default function SalesPage() {
     subtotal
   );
 
-  const total = subtotal - discountAmount;
+  const total =
+    subtotal - discountAmount;
 
-  const paidAmount = Number(amountPaid) || 0;
+  // Normal payment
+  const paidAmount =
+    Number(amountPaid) || 0;
+
+  // Split payment
+  const splitCash =
+    Number(cashAmount) || 0;
+
+  const splitCard =
+    Number(cardAmount) || 0;
+
+  const splitTransfer =
+    Number(transferAmount) || 0;
+
+  const splitTotal =
+    splitCash +
+    splitCard +
+    splitTransfer;
+
+  const splitRemaining =
+    total - splitTotal;
 
   const change =
     paymentMethod === "cash"
-      ? Math.max(paidAmount - total, 0)
+      ? Math.max(
+          paidAmount - total,
+          0
+        )
       : 0;
 
   const canCompletePayment =
     paymentMethod === "cash"
       ? paidAmount >= total
-      : true;
+      : paymentMethod === "split"
+        ? splitTotal === total
+        : true;
 
   const openPayment = () => {
     if (cart.length === 0) {
@@ -171,6 +238,9 @@ export default function SalesPage() {
     }
 
     setAmountPaid("");
+    setCashAmount("");
+    setCardAmount("");
+    setTransferAmount("");
     setPaymentMethod("cash");
     setShowPayment(true);
   };
@@ -178,39 +248,73 @@ export default function SalesPage() {
   const closePayment = () => {
     setShowPayment(false);
     setAmountPaid("");
+    setCashAmount("");
+    setCardAmount("");
+    setTransferAmount("");
   };
+
 
   const completePayment = () => {
     if (!canCompletePayment) {
-      alert("Amount paid is less than the sale total.");
+      if (paymentMethod === "split") {
+        alert(
+          "Split payment must equal the sale total."
+        );
+      } else {
+        alert(
+          "Amount paid is less than the sale total."
+        );
+      }
       return;
     }
-
+  
+    let paymentDescription = "";
+  
+    if (paymentMethod === "split") {
+      paymentDescription =
+        `Split Payment\nCash: ₦${splitCash.toLocaleString()}\nCard: ₦${splitCard.toLocaleString()}\nTransfer: ₦${splitTransfer.toLocaleString()}`;
+    } else {
+      paymentDescription =
+        paymentMethod === "cash"
+          ? `Cash: ₦${cashAmount.toLocaleString()}`
+          : paymentMethod === "card"
+          ? `Card: ₦${cardAmount.toLocaleString()}`
+          : `Transfer: ₦${transferAmount.toLocaleString()}`;
+    }
+  
     /*
-     * For now this only completes the frontend payment screen.
+     * For now this only completes
+     * the frontend payment screen.
      *
-     * In the next step we will:
+     * In the next backend step we will:
      * - reduce inventory
-     * - create a sale record
-     * - create payment record
+     * - create sale record
+     * - create payment records
      * - create stock movement
      * - generate receipt
      */
-
+  
     alert(
-      `Payment successful!\n\nMethod: ${paymentMethod}\nTotal: ₦${total.toLocaleString()}`
+      `Payment successful!\n\nMethod: ${paymentDescription}\nTotal: ₦${total.toLocaleString()}`
     );
-
+  
     setCart([]);
     setDiscount("");
     setAmountPaid("");
+    setCashAmount("");
+    setCardAmount("");
+    setTransferAmount("");
     setShowPayment(false);
   };
+
 
   const clearSale = () => {
     setCart([]);
     setDiscount("");
     setAmountPaid("");
+    setCashAmount("");
+    setCardAmount("");
+    setTransferAmount("");
     setShowPayment(false);
   };
 
@@ -219,7 +323,6 @@ export default function SalesPage() {
 
       {/* Header */}
       <div className="mb-5">
-
         <h1 className="text-2xl font-bold text-gray-900">
           New Sale
         </h1>
@@ -227,7 +330,6 @@ export default function SalesPage() {
         <p className="text-sm text-gray-600">
           Select products and create a customer sale.
         </p>
-
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
@@ -245,12 +347,13 @@ export default function SalesPage() {
               type="search"
               value={search}
               onChange={(event) =>
-                setSearch(event.target.value)
+                setSearch(
+                  event.target.value
+                )
               }
               placeholder="Search by name, category or SKU..."
               className="w-full rounded-lg border bg-white px-4 py-3 text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
             />
-
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -263,46 +366,51 @@ export default function SalesPage() {
 
             ) : (
 
-              filteredProducts.map((product) => (
+              filteredProducts.map(
+                (product) => (
 
-                <button
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="rounded-xl bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                >
+                  <button
+                    key={product.id}
+                    onClick={() =>
+                      addToCart(product)
+                    }
+                    className="rounded-xl bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
 
-                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between gap-2">
 
-                    <div>
+                      <div>
 
-                      <h2 className="font-bold text-gray-900">
-                        {product.name}
-                      </h2>
+                        <h2 className="font-bold text-gray-900">
+                          {product.name}
+                        </h2>
 
-                      <p className="mt-1 text-sm text-gray-500">
-                        {product.category || "No category"}
-                      </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {product.category ||
+                            "No category"}
+                        </p>
+
+                      </div>
+
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                        {product.stock}{" "}
+                        {product.unit}
+                      </span>
 
                     </div>
 
-                    <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                      {product.stock} {product.unit}
-                    </span>
+                    <p className="mt-4 text-lg font-bold text-green-700">
+                      ₦
+                      {product.sellingPrice.toLocaleString()}
+                    </p>
 
-                  </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Tap to add
+                    </p>
 
-                  <p className="mt-4 text-lg font-bold text-green-700">
-                    ₦{product.sellingPrice.toLocaleString()}
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    Tap to add
-                  </p>
-
-                </button>
-
-              ))
-
+                  </button>
+                )
+              )
             )}
 
           </div>
@@ -325,7 +433,6 @@ export default function SalesPage() {
               </span>
 
             </div>
-
           </div>
 
           <div className="max-h-[420px] overflow-y-auto p-4">
@@ -374,7 +481,9 @@ export default function SalesPage() {
 
                       <button
                         onClick={() =>
-                          removeFromCart(item.product.id)
+                          removeFromCart(
+                            item.product.id
+                          )
                         }
                         className="text-sm font-medium text-red-600"
                       >
@@ -384,37 +493,74 @@ export default function SalesPage() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between">
-
-                      <div className="flex items-center rounded-lg border">
-
-                        <button
-                          onClick={() =>
-                            decreaseQuantity(item.product.id)
-                          }
-                          className="px-3 py-2 font-bold text-gray-900"
-                        >
-                          −
-                        </button>
-
-                        <span className="px-3 py-2 font-semibold text-gray-900">
-                          {item.quantity}
-                        </span>
-
-                        <button
-                          onClick={() =>
-                            increaseQuantity(item.product.id)
-                          }
-                          className="px-3 py-2 font-bold text-gray-900"
-                        >
-                          +
-                        </button>
-
-                      </div>
+                        <div className="flex items-center rounded-lg border">
+                        
+                          {/* Minus */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              decreaseQuantity(item.product.id)
+                            }
+                            className="px-3 py-2 text-lg font-bold text-gray-900 hover:bg-gray-100"
+                          >
+                            −
+                          </button>
+                        
+                          {/* Quantity input */}
+                          <input
+                            type="number"
+                            min="1"
+                            max={item.product.stock}
+                            value={item.quantity}
+                            onChange={(event) => {
+                              const value = Number(event.target.value);
+                        
+                              if (!Number.isFinite(value)) {
+                                return;
+                              }
+                        
+                              if (value <= 0) {
+                                removeFromCart(item.product.id);
+                                return;
+                              }
+                        
+                              if (value > item.product.stock) {
+                                return;
+                              }
+                        
+                              setCart((currentCart) =>
+                                currentCart.map((cartItem) =>
+                                  cartItem.product.id === item.product.id
+                                    ? {
+                                        ...cartItem,
+                                        quantity: value,
+                                      }
+                                    : cartItem
+                                )
+                              );
+                            }}
+                            className="w-16 border-x px-2 py-2 text-center font-semibold text-gray-900 outline-none focus:border-green-600"
+                          />
+                        
+                          {/* Plus */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              increaseQuantity(item.product.id)
+                            }
+                            disabled={item.quantity >= item.product.stock}
+                            className="px-3 py-2 text-lg font-bold text-gray-900 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            +
+                          </button>
+                        
+                        </div>
 
                       <p className="font-bold text-gray-900">
                         ₦
                         {(
-                          item.product.sellingPrice *
+                          item.product
+                            .sellingPrice *
                           item.quantity
                         ).toLocaleString()}
                       </p>
@@ -443,7 +589,8 @@ export default function SalesPage() {
                 </span>
 
                 <span className="font-semibold text-gray-900">
-                  ₦{subtotal.toLocaleString()}
+                  ₦
+                  {subtotal.toLocaleString()}
                 </span>
 
               </div>
@@ -459,7 +606,9 @@ export default function SalesPage() {
                   min="0"
                   value={discount}
                   onChange={(event) =>
-                    setDiscount(event.target.value)
+                    setDiscount(
+                      event.target.value
+                    )
                   }
                   placeholder="0"
                   className="w-full rounded-lg border bg-white px-4 py-3 text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
@@ -474,7 +623,8 @@ export default function SalesPage() {
                 </span>
 
                 <span className="text-xl font-bold text-green-700">
-                  ₦{total.toLocaleString()}
+                  ₦
+                  {total.toLocaleString()}
                 </span>
 
               </div>
@@ -485,7 +635,9 @@ export default function SalesPage() {
 
               <button
                 onClick={clearSale}
-                disabled={cart.length === 0}
+                disabled={
+                  cart.length === 0
+                }
                 className="rounded-lg border px-4 py-3 font-semibold text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Clear
@@ -493,7 +645,9 @@ export default function SalesPage() {
 
               <button
                 onClick={openPayment}
-                disabled={cart.length === 0}
+                disabled={
+                  cart.length === 0
+                }
                 className="rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Pay
@@ -546,7 +700,8 @@ export default function SalesPage() {
               </p>
 
               <p className="mt-1 text-3xl font-bold text-gray-900">
-                ₦{total.toLocaleString()}
+                ₦
+                {total.toLocaleString()}
               </p>
 
             </div>
@@ -558,14 +713,18 @@ export default function SalesPage() {
                 Payment Method
               </label>
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
 
+                {/* Cash */}
                 <button
                   onClick={() =>
-                    setPaymentMethod("cash")
+                    setPaymentMethod(
+                      "cash"
+                    )
                   }
                   className={`rounded-lg border px-2 py-3 text-sm font-semibold ${
-                    paymentMethod === "cash"
+                    paymentMethod ===
+                    "cash"
                       ? "border-green-600 bg-green-50 text-green-700"
                       : "text-gray-700"
                   }`}
@@ -573,12 +732,16 @@ export default function SalesPage() {
                   Cash
                 </button>
 
+                {/* Card */}
                 <button
                   onClick={() =>
-                    setPaymentMethod("card")
+                    setPaymentMethod(
+                      "card"
+                    )
                   }
                   className={`rounded-lg border px-2 py-3 text-sm font-semibold ${
-                    paymentMethod === "card"
+                    paymentMethod ===
+                    "card"
                       ? "border-green-600 bg-green-50 text-green-700"
                       : "text-gray-700"
                   }`}
@@ -586,12 +749,16 @@ export default function SalesPage() {
                   Card
                 </button>
 
+                {/* Transfer */}
                 <button
                   onClick={() =>
-                    setPaymentMethod("transfer")
+                    setPaymentMethod(
+                      "transfer"
+                    )
                   }
                   className={`rounded-lg border px-2 py-3 text-sm font-semibold ${
-                    paymentMethod === "transfer"
+                    paymentMethod ===
+                    "transfer"
                       ? "border-green-600 bg-green-50 text-green-700"
                       : "text-gray-700"
                   }`}
@@ -599,12 +766,30 @@ export default function SalesPage() {
                   Transfer
                 </button>
 
+                {/* Split */}
+                <button
+                  onClick={() =>
+                    setPaymentMethod(
+                      "split"
+                    )
+                  }
+                  className={`rounded-lg border px-2 py-3 text-sm font-semibold ${
+                    paymentMethod ===
+                    "split"
+                      ? "border-green-600 bg-green-50 text-green-700"
+                      : "text-gray-700"
+                  }`}
+                >
+                  Split
+                </button>
+
               </div>
 
             </div>
 
-            {/* Cash Amount */}
-            {paymentMethod === "cash" && (
+            {/* Cash Payment */}
+            {paymentMethod ===
+              "cash" && (
 
               <div className="mb-5">
 
@@ -617,7 +802,9 @@ export default function SalesPage() {
                   min="0"
                   value={amountPaid}
                   onChange={(event) =>
-                    setAmountPaid(event.target.value)
+                    setAmountPaid(
+                      event.target.value
+                    )
                   }
                   placeholder="Enter amount received"
                   className="w-full rounded-lg border bg-white px-4 py-3 text-lg font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
@@ -630,24 +817,162 @@ export default function SalesPage() {
                   </span>
 
                   <span className="font-bold text-green-700">
-                    ₦{change.toLocaleString()}
+                    ₦
+                    {change.toLocaleString()}
                   </span>
 
                 </div>
 
               </div>
-
             )}
 
-            {/* Card / Transfer information */}
-            {paymentMethod !== "cash" && (
+            {/* Split Payment */}
+            {paymentMethod ===
+              "split" && (
+
+              <div className="mb-5 space-y-4">
+
+                {/* Cash */}
+                <div>
+
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Cash Amount
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value={cashAmount}
+                    onChange={(event) =>
+                      setCashAmount(
+                        event.target.value
+                      )
+                    }
+                    placeholder="₦0"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-lg font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
+                  />
+
+                </div>
+
+                {/* Card */}
+                <div>
+
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Card Amount
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value={cardAmount}
+                    onChange={(event) =>
+                      setCardAmount(
+                        event.target.value
+                      )
+                    }
+                    placeholder="₦0"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-lg font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
+                  />
+
+                </div>
+
+                {/* Transfer */}
+                <div>
+
+                  <label className="mb-2 block text-sm font-semibold text-gray-900">
+                    Transfer Amount
+                  </label>
+
+                  <input
+                    type="number"
+                    min="0"
+                    value={transferAmount}
+                    onChange={(event) =>
+                      setTransferAmount(
+                        event.target.value
+                      )
+                    }
+                    placeholder="₦0"
+                    className="w-full rounded-lg border bg-white px-4 py-3 text-lg font-semibold text-gray-900 placeholder-gray-400 outline-none focus:border-green-600"
+                  />
+
+                </div>
+
+                {/* Split Summary */}
+                <div className="rounded-lg bg-gray-100 p-4">
+
+                  <div className="flex justify-between text-sm">
+
+                    <span className="text-gray-600">
+                      Split Payment Total
+                    </span>
+
+                    <span className="font-bold text-gray-900">
+                      ₦
+                      {splitTotal.toLocaleString()}
+                    </span>
+
+                  </div>
+
+                  <div className="mt-2 flex justify-between text-sm">
+
+                    <span className="text-gray-600">
+                      Amount Due
+                    </span>
+
+                    <span className="font-bold text-gray-900">
+                      ₦
+                      {total.toLocaleString()}
+                    </span>
+
+                  </div>
+
+                  <div className="mt-3 border-t pt-3">
+
+                    <p
+                      className={`text-sm font-semibold ${
+                        splitTotal ===
+                        total
+                          ? "text-green-700"
+                          : splitTotal >
+                              total
+                            ? "text-red-700"
+                            : "text-orange-600"
+                      }`}
+                    >
+                      {splitTotal ===
+                      total
+                        ? "Payment amount is correct."
+                        : splitTotal >
+                            total
+                          ? "Payment is greater than the amount due."
+                          : `₦${Math.abs(
+                              splitRemaining
+                            ).toLocaleString()} remaining`}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* Card / Transfer Information */}
+            {paymentMethod !==
+              "cash" &&
+              paymentMethod !==
+                "split" && (
 
               <div className="mb-5 rounded-lg bg-blue-50 p-4">
 
                 <p className="text-sm font-semibold text-gray-900">
-                  {paymentMethod === "card"
+
+                  {paymentMethod ===
+                  "card"
                     ? "Card Payment"
                     : "Bank Transfer"}
+
                 </p>
 
                 <p className="mt-1 text-sm text-gray-600">
@@ -655,7 +980,6 @@ export default function SalesPage() {
                 </p>
 
               </div>
-
             )}
 
             {/* Buttons */}
@@ -669,8 +993,12 @@ export default function SalesPage() {
               </button>
 
               <button
-                onClick={completePayment}
-                disabled={!canCompletePayment}
+                onClick={
+                  completePayment
+                }
+                disabled={
+                  !canCompletePayment
+                }
                 className="rounded-lg bg-green-600 px-4 py-3 font-semibold text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Complete Sale
@@ -681,7 +1009,6 @@ export default function SalesPage() {
           </div>
 
         </div>
-
       )}
 
     </main>
