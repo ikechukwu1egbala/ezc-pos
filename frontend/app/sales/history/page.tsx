@@ -18,7 +18,11 @@ interface Sale {
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: "cash" | "card" | "transfer";
+  paymentMethod:
+  | "cash"
+  | "card"
+  | "transfer"
+  | "split";
   amountPaid: number;
   change: number;
   status: string;
@@ -32,7 +36,7 @@ export default function SalesHistoryPage() {
   useEffect(() => {
     const savedSales =
       localStorage.getItem(SALES_STORAGE_KEY);
-
+      
     if (savedSales) {
       setSales(JSON.parse(savedSales));
     }
